@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stylescope - Email Verification</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .welcome-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        .verification-code {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            text-align: center;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 25px 0;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .instructions {
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 8px 8px 0;
+        }
+        .instructions h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .instructions ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        .brand {
+            color: #667eea;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 STYLESCOPE</h1>
+            <p>Email Verification Required</p>
+        </div>
+        
+        <div class="content">
+            <div class="welcome-text">
+                <strong>Welcome{% if user_name %} {{ user_name }}{% endif %}!</strong><br>
+                Thank you for creating your Stylescope account. To complete your registration and start using our virtual try-on platform, please verify your email address.
+            </div>
+            
+            <p><strong>Account Email:</strong> {{ email }}</p>
+            
+            <div class="verification-code">
+                {{ verification_code }}
+            </div>
+            
+            <div class="instructions">
+                <h3>📋 How to Verify Your Email:</h3>
+                <ol>
+                    <li>Enter this 4-digit code in the email verification form</li>
+                    <li>Complete the verification process</li>
+                    <li>Start exploring virtual try-on features!</li>
+                </ol>
+            </div>
+            
+            <div class="warning">
+                <strong>⚠️ IMPORTANT:</strong>
+                <ul style="margin: 10px 0; padding-left: 20px;">
+                    <li>This verification code expires in <strong>30 minutes</strong> (at {{ expiry_time }})</li>
+                    <li>The code was generated at {{ timestamp }}</li>
+                    <li>If you didn't create this account, please ignore this email</li>
+                    <li>You must verify your email before you can log in to your account</li>
+                </ul>
+            </div>
+            
+            <p style="margin-top: 30px; color: #666;">
+                Didn't receive this email in your inbox? Check your spam/junk folder. Need help? Contact our support team.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p><strong class="brand">Stylescope</strong> - Virtual Try-On Platform</p>
+            <p>This is an automated email. Please do not reply to this message.</p>
+        </div>
+    </div>
+</body>
+</html>

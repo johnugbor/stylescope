@@ -1,0 +1,30 @@
+STYLESCOPE - Email Verification Required
+
+Welcome{% if user_name %} {{ user_name }}{% endif %}!
+
+Thank you for creating your Stylescope account. To complete your registration and start using our virtual try-on platform, please verify your email address.
+
+Account Email: {{ email }}
+
+Your email verification code is: {{ verification_code }}
+
+This code will expire in 30 minutes (at {{ expiry_time }}).
+
+How to Verify Your Email:
+1. Enter this 4-digit code in the email verification form
+2. Complete the verification process  
+3. Start exploring virtual try-on features!
+
+⚠️ IMPORTANT:
+- This verification code expires in 30 minutes
+- The code was generated at {{ timestamp }}
+- If you didn't create this account, please ignore this email
+- You must verify your email before you can log in to your account
+
+Didn't receive this email in your inbox? Check your spam/junk folder. Need help? Contact our support team.
+
+Best regards,
+The Stylescope Team
+
+---
+This is an automated email. Please do not reply to this message.
