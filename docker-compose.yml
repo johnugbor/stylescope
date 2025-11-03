@@ -1,41 +1,19 @@
-
 services:
   db:
-    image: postgres:15
+    container_name: stylescope_db
+    image: postgres:15-alpine
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    restart: always
+    # No ports exposed - only accessible by other containers
 
   redis:
     image: redis:7-alpine
-
-  minio:
-    image: minio/minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - minio_data:/data
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
-      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
-    command: server /data --console-address ":9001"
-
-  createbuckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
-      /usr/bin/mc mb myminio/${AWS_STORAGE_BUCKET_NAME} || true;
-      /usr/bin/mc policy set public myminio/${AWS_STORAGE_BUCKET_NAME};
-      "
+    restart: always
 
   backend:
     build:
@@ -43,14 +21,15 @@ services:
     command: >
       sh -c "python manage.py migrate &&
              python manage.py create_superuser &&
-             python manage.py runserver 0.0.0.0:8000"
+             gunicorn stylescope_api.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
       - ../backend/:/app/
     ports:
       - "8082:8000"
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DEBUG=True
+      - DEBUG=False
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -59,10 +38,10 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - USE_S3=True
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
-      - AWS_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - SUPERUSER_USERNAME=${SUPERUSER_USERNAME}
       - SUPERUSER_EMAIL=${SUPERUSER_EMAIL}
@@ -73,12 +52,12 @@ services:
     depends_on:
       - db
       - redis
-      - createbuckets
+    restart: always
 
   celery_worker:
     build:
       context: ../backend
-    command: python -m celery -A stylescope_api worker -l info
+    command: python -m celery -A stylescope_api worker -l info --concurrency=2
     volumes:
       - ../backend/:/app/
     environment:
@@ -91,10 +70,10 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
       - CELERY_RESULT_BACKEND=redis://redis:6379/0
       - USE_S3=True
-      - AWS_ACCESS_KEY_ID=${MINIO_ROOT_USER}
-      - AWS_SECRET_ACCESS_KEY=${MINIO_ROOT_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_STORAGE_BUCKET_NAME=${AWS_STORAGE_BUCKET_NAME}
-      - AWS_S3_ENDPOINT_URL=http://minio:9000
+      - AWS_S3_REGION_NAME=${AWS_S3_REGION_NAME}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION}
@@ -103,7 +82,7 @@ services:
     depends_on:
       - backend
       - redis
+    restart: always
 
 volumes:
   postgres_data:
-  minio_data:
