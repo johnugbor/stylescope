@@ -9,7 +9,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     restart: always
-    # No ports exposed - only accessible by other containers
 
   redis:
     image: redis:7-alpine
@@ -17,13 +16,13 @@ services:
 
   backend:
     build:
-      context: ../backend
+      context: .
     command: >
       sh -c "python manage.py migrate &&
              python manage.py create_superuser &&
              gunicorn stylescope_api.wsgi:application --bind 0.0.0.0:8000 --workers 3 --timeout 120"
     volumes:
-      - ../backend/:/app/
+      - ./:/app/
     ports:
       - "8082:8000"
     environment:
@@ -48,7 +47,7 @@ services:
       - SUPERUSER_PASSWORD=${SUPERUSER_PASSWORD}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION}
-      - GOOGLE_APPLICATION_CREDENTIALS_JSON=${GOOGLE_APPLICATION_CREDENTIALS_JSON}      
+      - GOOGLE_APPLICATION_CREDENTIALS_JSON=${GOOGLE_APPLICATION_CREDENTIALS_JSON}
     depends_on:
       - db
       - redis
@@ -56,10 +55,10 @@ services:
 
   celery_worker:
     build:
-      context: ../backend
+      context: .
     command: python -m celery -A stylescope_api worker -l info --concurrency=2
     volumes:
-      - ../backend/:/app/
+      - ./:/app/
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - POSTGRES_DB=${POSTGRES_DB}
@@ -77,7 +76,7 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT}
       - GOOGLE_CLOUD_LOCATION=${GOOGLE_CLOUD_LOCATION}
-      - GOOGLE_GENAI_USE_VERTEXAI=True      
+      - GOOGLE_GENAI_USE_VERTEXAI=True
       - GOOGLE_APPLICATION_CREDENTIALS_JSON=${GOOGLE_APPLICATION_CREDENTIALS_JSON}
     depends_on:
       - backend
