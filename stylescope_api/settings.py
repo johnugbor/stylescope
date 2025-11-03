@@ -137,7 +137,7 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 # Media URL now points to MinIO, not local /media/
-MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+#MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 
 #EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' #os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.console.EmailBackend')  # Use console for development
 EMAIL_HOST = os.getenv("EMAIL_HOST", 'smtp.gmail.com')
