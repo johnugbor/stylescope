@@ -19,8 +19,6 @@ services:
       context: .
     command: >
       sh -c "
-             mkdir -p /app/staticfiles &&
-             chmod -R 777 /app/staticfiles &&
              python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              python manage.py create_superuser &&
