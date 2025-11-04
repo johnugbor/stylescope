@@ -10,7 +10,6 @@ from celery import shared_task
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 from .models import EditJob, HumanModel, PageItem
-from .utils import get_minio_url
 logger = logging.getLogger(__name__)
 # Configure the Gemini client
 genai.configure(api_key=settings.GEMINI_API_KEY)
@@ -33,8 +32,8 @@ def process_single_edit(self, page_item_id, human_model_image_url):
     try:
         logger.info(f"Starting process_single_edit for page_item_id={page_item_id}, human_model_image_url={human_model_image_url}")
         page_item = PageItem.objects.select_related('clothing_item').get(id=page_item_id)
-        model_image_url = get_minio_url(human_model_image_url, for_backend=True)
-        clothing_image_url = get_minio_url(page_item.clothing_item.image_url, for_backend=True)
+        model_image_url = human_model_image_url  # Already a complete S3 URL
+        clothing_image_url = page_item.clothing_item.image_url  # Already a complete S3 URL
         logger.info(f"Model image URL: {model_image_url}")
         logger.info(f"Clothing image URL: {clothing_image_url}")
         
