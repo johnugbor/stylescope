@@ -3,7 +3,6 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.conf import settings
 from django.contrib.auth import authenticate
 from .models import HumanModel, ClothingItem, Page, PageItem, EditJob, User, get_active_subscription, Support, SupportMessage, PasswordResetToken, EmailVerificationToken
-from .utils import get_minio_url
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
@@ -57,22 +56,8 @@ class HumanModelSerializer(serializers.ModelSerializer):
         read_only_fields = ('user', 'display_image_url')
         
     def get_display_image_url(self, obj):
-        # obj.image_url should contain only the object key
-        return get_minio_url(obj.image_url, for_backend=False)
-    
-    def to_internal_value(self, data):
-        # If image_url is provided and it's a full URL, extract just the object key
-        if 'image_url' in data and data['image_url']:
-            image_url = data['image_url']
-            bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            # Check if it's a full MinIO URL and extract the object key
-            if image_url.startswith('http') and f'/{bucket_name}/' in image_url:
-                # Extract the object key part after the bucket name
-                parts = image_url.split(f'/{bucket_name}/')
-                if len(parts) > 1:
-                    data['image_url'] = parts[1]
-        
-        return super().to_internal_value(data)        
+        # obj.image_url contains the complete S3 URL
+        return obj.image_url
 
 class ClothingItemSerializer(serializers.ModelSerializer):
     full_image_url = serializers.SerializerMethodField()
@@ -83,30 +68,17 @@ class ClothingItemSerializer(serializers.ModelSerializer):
         read_only_fields = ('user', 'full_image_url')
         
     def get_display_image_url(self, obj):
-        # obj.image_url should contain only the object key
-        return get_minio_url(obj.image_url, for_backend=False)
+        # obj.image_url contains the complete S3 URL
+        return obj.image_url
     
     def get_edited_image_url(self, obj):
-        # obj.display_image_url should contain only the object key
-        return get_minio_url(obj.display_image_url, for_backend=False) if obj.display_image_url else None
+        # obj.display_image_url contains the complete S3 URL
+        return obj.display_image_url
     
     def get_full_image_url(self, obj):
-        # obj.image_url should contain only the object key
-        return get_minio_url(obj.image_url, for_backend=False) if obj.image_url else None
+        # obj.image_url contains the complete S3 URL
+        return obj.image_url
 
-    def to_internal_value(self, data):
-        # If image_url is provided and it's a full URL, extract just the object key
-        if 'image_url' in data and data['image_url']:
-            image_url = data['image_url']
-            bucket_name = settings.AWS_STORAGE_BUCKET_NAME
-            # Check if it's a full MinIO URL and extract the object key
-            if image_url.startswith('http') and f'/{bucket_name}/' in image_url:
-                # Extract the object key part after the bucket name
-                parts = image_url.split(f'/{bucket_name}/')
-                if len(parts) > 1:
-                    data['image_url'] = parts[1]
-        
-        return super().to_internal_value(data)
 class PageItemSerializer(serializers.ModelSerializer):
     clothing_item = ClothingItemSerializer(read_only=True)
     clothing_item_id = serializers.UUIDField(write_only=True)
