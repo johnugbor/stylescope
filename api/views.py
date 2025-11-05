@@ -881,12 +881,33 @@ class EmailVerificationResendView(APIView):
         html_message = render_to_string('emails/email_verification.html', context)
         plain_message = render_to_string('emails/email_verification.txt', context)
         
-        # Send email
-        send_mail(
-            subject='Stylescope - Email Verification Required',
-            message=plain_message,
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            html_message=html_message,
-            fail_silently=False
-        )
+        # Send email with error handling
+        try:
+            send_mail(
+                subject='Stylescope - Email Verification Required',
+                message=plain_message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                html_message=html_message,
+                fail_silently=False
+            )
+        except Exception as e:
+            # Log the error but don't fail the verification token creation
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            
+            # In development, print to console as fallback
+            if settings.DEBUG:
+                print(f"""
+=== EMAIL VERIFICATION (SMTP Failed) ===
+To: {user.email}
+Subject: Stylescope - Email Verification Required
+Verification Code: {verification_token.code}
+Expires: {expiry_time}
+========================================
+""")
+            
+            # Re-raise the exception if not in debug mode
+            if not settings.DEBUG:
+                raise
