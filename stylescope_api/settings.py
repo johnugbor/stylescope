@@ -108,6 +108,16 @@ CORS_ALLOW_ALL_ORIGINS = True # For development; restrict in production
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
+# Task configuration
+CELERY_TASK_SOFT_TIME_LIMIT = 300  # 5 minutes soft limit
+CELERY_TASK_TIME_LIMIT = 420      # 7 minutes hard limit
+CELERY_TASK_ACKS_LATE = True
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+
+# Memory management (relaxed for larger RAM)
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 50   # Back to original
+CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000  # 200MB limit
+
 
 # AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
 # AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-2')
@@ -145,13 +155,19 @@ else:
 # Media URL now points to MinIO, not local /media/
 #MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 
-#EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend' #os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.console.EmailBackend')  # Use console for development
-EMAIL_HOST = os.getenv("EMAIL_HOST", 'smtp.gmail.com')
-EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", 'your-email@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", 'your-app-password')
-EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", 'True').lower() == 'true'
-DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
+# Email Configuration
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.smtp.EmailBackend')
+
+if EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
+    # SMTP email settings
+    EMAIL_HOST = os.getenv("EMAIL_HOST", 'smtp.gmail.com')
+    EMAIL_PORT = int(os.getenv("EMAIL_PORT", 587))
+    EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+    EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
+    EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", 'True').lower() == 'true'
+
+# Fallback default
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", os.getenv("EMAIL_HOST_USER", 'noreply@stylescope.com'))
 
 
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")

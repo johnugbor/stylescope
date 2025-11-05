@@ -2,6 +2,7 @@ import requests
 import time
 import os
 import logging
+import gc
 from io import BytesIO
 from PIL import Image as PILImage, ImageDraw, ImageFont
 
@@ -12,6 +13,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
 from celery import shared_task, group
+from celery.exceptions import SoftTimeLimitExceeded
 
 from .models import EditJob, HumanModel, PageItem
 
@@ -95,7 +97,7 @@ def crop_right_half(img_bytes):
     return buf.getvalue()
 # -------------------- TASKS --------------------
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, soft_time_limit=300, time_limit=420)
 def process_single_edit(self, page_item_id, human_model_image_url):
     """Processes a single clothing item against a human model using Gemini API."""
     try:
@@ -107,13 +109,28 @@ def process_single_edit(self, page_item_id, human_model_image_url):
         logger.info(f"Model image URL: {model_image_url}")
         logger.info(f"Clothing image URL: {clothing_image_url}")
 
-        # download both images
+        # Download and resize images to manage memory
         model_image_bytes = download_image_bytes(model_image_url)
         clothing_image_bytes = download_image_bytes(clothing_image_url)
+        
+        logger.info(f"Downloaded images - Model: {len(model_image_bytes)} bytes, Clothing: {len(clothing_image_bytes)} bytes")
 
-        # convert to PIL Images for Gemini API
+        # Convert to PIL Images and resize if too large to manage memory
         model_image = PILImage.open(BytesIO(model_image_bytes))
         clothing_image = PILImage.open(BytesIO(clothing_image_bytes))
+        
+        # Resize images if they're too large (max 2048x2048 for better quality)
+        max_size = 2048  # Back to higher quality for larger RAM
+        if model_image.size[0] > max_size or model_image.size[1] > max_size:
+            model_image.thumbnail((max_size, max_size), PILImage.Resampling.LANCZOS)
+            logger.info(f"Resized model image to {model_image.size}")
+            
+        if clothing_image.size[0] > max_size or clothing_image.size[1] > max_size:
+            clothing_image.thumbnail((max_size, max_size), PILImage.Resampling.LANCZOS)
+            logger.info(f"Resized clothing image to {clothing_image.size}")
+
+        # Clear the bytes from memory
+        del model_image_bytes, clothing_image_bytes
 
         # Simple, clear prompt for virtual try-on
         prompt = """
@@ -132,17 +149,27 @@ def process_single_edit(self, page_item_id, human_model_image_url):
 
         logger.info("Sending request to Gemini 2.5 Flash Image API...")
 
-        # ✅ Correct format for multiple images with google.generativeai library
-        model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
-        response = model.generate_content([
-            "Person to dress:",
-            model_image,
-            "Clothing item to apply:",
-            clothing_image,
-            prompt
-        ])
-
-        logger.info("Received response from Gemini model.")
+        try:
+            # ✅ Correct format for multiple images with google.generativeai library
+            model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
+            response = model.generate_content([
+                "Person to dress:",
+                model_image,
+                "Clothing item to apply:",
+                clothing_image,
+                prompt
+            ])
+            
+            logger.info("Received response from Gemini model.")
+            
+        except Exception as gemini_error:
+            logger.error(f"Gemini API error: {gemini_error}")
+            # Clear images from memory before re-raising
+            del model_image, clothing_image
+            raise Exception(f"Gemini API failed: {str(gemini_error)}")
+        
+        # Clear input images from memory as soon as possible
+        del model_image, clothing_image
 
         # extract generated image
         img_bytes = None
@@ -163,10 +190,19 @@ def process_single_edit(self, page_item_id, human_model_image_url):
         result_url = upload_image_to_storage(img_bytes, result_filename)
         logger.info(f"Uploaded generated image: {result_url}")
 
+        # Force garbage collection to free memory
+        gc.collect()
+        
         return result_url
 
+    except SoftTimeLimitExceeded:
+        logger.error(f"Task soft time limit exceeded for page_item_id={page_item_id}")
+        gc.collect()
+        raise Exception("Task took too long to complete")
     except Exception as exc:
         logger.error(f"Error processing single edit for page_item_id={page_item_id}: {exc}")
+        # Force garbage collection even on error
+        gc.collect()
         raise self.retry(exc=exc, countdown=60 * 2 ** self.request.retries)
 
 
