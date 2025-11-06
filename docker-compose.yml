@@ -27,6 +27,11 @@ services:
       - ./:/app/
     ports:
       - "8082:8000"
+    networks:
+      - default
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - DEBUG=False
@@ -68,6 +73,11 @@ services:
     command: python -m celery -A stylescope_api worker -l info --concurrency=2
     volumes:
       - ./:/app/
+    networks:
+      - default
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - POSTGRES_DB=${POSTGRES_DB}
