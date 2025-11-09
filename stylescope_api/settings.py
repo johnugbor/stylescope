@@ -13,6 +13,8 @@ ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
     "192.168.1.222",
+    "138.68.16.227",
+    "api.callho.com"
 ]
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
