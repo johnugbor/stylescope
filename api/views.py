@@ -16,6 +16,18 @@ from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from .utils import send_email as gmail_send_email
+# yourapp/views.py
+from django.shortcuts import render, redirect
+from django.http import JsonResponse
+from django.contrib.admin.views.decorators import staff_member_required
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
+import os
+import json
+
+SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import HumanModel, ClothingItem, Page, PageItem, EditJob, SubscriptionPlan, UserSubscription, get_active_subscription, Support, SupportMessage, PasswordResetToken, EmailVerificationToken
 from .serializers import (
@@ -77,15 +89,16 @@ class RegisterView(generics.CreateAPIView):
             html_message = render_to_string('emails/email_verification.html', context)
             plain_message = render_to_string('emails/email_verification.txt', context)
             
-            # Send email
-            send_mail(
+            # Send email using custom Gmail API
+            success = gmail_send_email(
+                to_email=user.email,
                 subject='Stylescope - Email Verification Required',
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
+                body=html_message,
+                is_html=True
             )
+            
+            if not success:
+                raise Exception("Failed to send email via Gmail API")
             
         except Exception as e:
             # Log the error (in production, use proper logging)
@@ -700,15 +713,16 @@ class PasswordResetRequestView(APIView):
                 html_message = render_to_string('emails/password_reset.html', context)
                 plain_message = render_to_string('emails/password_reset.txt', context)
                 
-                # Send email
-                send_mail(
+                # Send email using custom Gmail API
+                success = gmail_send_email(
+                    to_email=reset_token.user.email,
                     subject='Stylescope - Password Reset Verification Code',
-                    message=plain_message,
-                    from_email=settings.DEFAULT_FROM_EMAIL,
-                    recipient_list=[reset_token.user.email],
-                    html_message=html_message,
-                    fail_silently=False
+                    body=html_message,
+                    is_html=True
                 )
+                
+                if not success:
+                    raise Exception("Failed to send email via Gmail API")
                 
                 return Response({
                     'message': 'Password reset code has been sent to your email.',
@@ -881,26 +895,24 @@ class EmailVerificationResendView(APIView):
         html_message = render_to_string('emails/email_verification.html', context)
         plain_message = render_to_string('emails/email_verification.txt', context)
         
-        # Send email with error handling
-        try:
-            send_mail(
-                subject='Stylescope - Email Verification Required',
-                message=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[user.email],
-                html_message=html_message,
-                fail_silently=False
-            )
-        except Exception as e:
+        # Send email using custom Gmail API
+        success = gmail_send_email(
+            to_email=user.email,
+            subject='Stylescope - Email Verification Required',
+            body=html_message,
+            is_html=True
+        )
+        
+        if not success:
             # Log the error but don't fail the verification token creation
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+            logger.error(f"Failed to send verification email to {user.email} via Gmail API")
             
             # In development, print to console as fallback
             if settings.DEBUG:
                 print(f"""
-=== EMAIL VERIFICATION (SMTP Failed) ===
+=== EMAIL VERIFICATION (Gmail API Failed) ===
 To: {user.email}
 Subject: Stylescope - Email Verification Required
 Verification Code: {verification_token.code}
@@ -911,3 +923,113 @@ Expires: {expiry_time}
             # Re-raise the exception if not in debug mode
             if not settings.DEBUG:
                 raise
+
+
+
+
+
+@staff_member_required
+def gmail_oauth_start(request):
+    """Start the OAuth flow."""
+    # Hardcoded credentials - replace with your actual values from Google Cloud Console
+    client_config = {
+        "web": {
+            "client_id": "557908066525-o4ratkh4q6qnm8d3jbsf0f6461tknvdo.apps.googleusercontent.com",
+            "client_secret": "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",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://localhost:8082/api/v1/admin/gmail/oauth/callback/"]
+        }
+    }
+    
+    # Create the flow from client config
+    flow = Flow.from_client_config(
+        client_config,
+        scopes=SCOPES,
+        redirect_uri=request.build_absolute_uri('/api/v1/admin/gmail/oauth/callback/')
+    )
+    
+    authorization_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent'  # Force consent to get refresh token
+    )
+    
+    # Save state in session
+    request.session['gmail_oauth_state'] = state
+    
+    return redirect(authorization_url)
+
+
+@staff_member_required
+def gmail_oauth_callback(request):
+    """Handle the OAuth callback."""
+    try:
+        state = request.session.get('gmail_oauth_state')
+        
+        # Same hardcoded credentials
+        client_config = {
+            "web": {
+                "client_id": "557908066525-o4ratkh4q6qnm8d3jbsf0f6461tknvdo.apps.googleusercontent.com",
+                "client_secret": "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",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://localhost:8082/api/v1/admin/gmail/oauth/callback/"]
+            }
+        }
+        
+        flow = Flow.from_client_config(
+            client_config,
+            scopes=SCOPES,
+            state=state,
+            redirect_uri=request.build_absolute_uri('/api/v1/admin/gmail/oauth/callback/')
+        )
+        
+        # Get the authorization response
+        authorization_response = request.build_absolute_uri()
+        flow.fetch_token(authorization_response=authorization_response)
+        
+        credentials = flow.credentials
+        
+        # Save the token - create directory if needed
+        token_dir = os.path.join(settings.BASE_DIR, 'secrets')
+        os.makedirs(token_dir, exist_ok=True)
+        token_file = os.path.join(token_dir, 'gmail-token.json')
+        
+        with open(token_file, 'w') as token:
+            token.write(credentials.to_json())
+        try:
+            os.chmod(token_file, 0o600)
+        except:
+            pass  # Might fail on Windows
+        
+        return render(request, 'admin/gmail_oauth_success.html', {
+            'token_file': token_file,
+        })
+        
+    except Exception as e:
+        return render(request, 'admin/gmail_oauth_error.html', {
+            'error': str(e)
+        })
+
+
+@staff_member_required
+def gmail_oauth_status(request):
+    """Check OAuth status."""
+    token_exists = os.path.exists(settings.GMAIL_TOKEN_FILE)
+    token_valid = False
+    
+    if token_exists:
+        try:
+            with open(settings.GMAIL_TOKEN_FILE, 'r') as token:
+                token_data = json.load(token)
+                creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                token_valid = creds and creds.valid
+        except:
+            pass
+    
+    return JsonResponse({
+        'token_exists': token_exists,
+        'token_valid': token_valid,
+        'token_file': settings.GMAIL_TOKEN_FILE,
+    })

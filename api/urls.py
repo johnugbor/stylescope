@@ -5,7 +5,7 @@ from .views import (
     JobViewSet, PresignUploadView, RegisterView, GlobalEditView, SubscriptionView,
     UserProfileView, SupportViewSet, PasswordResetRequestView, PasswordResetVerifyView, PasswordResetCheckView,
     EmailVerificationView, EmailVerificationResendView,
-    consume_credit, create_subscription, revenuecat_webhook
+    consume_credit, create_subscription, revenuecat_webhook,gmail_oauth_start, gmail_oauth_callback, gmail_oauth_status 
 )
 
 router = DefaultRouter()
@@ -37,6 +37,9 @@ urlpatterns = [
     path("consume-credit/", consume_credit, name="consume_credit"),
     path("create-subscription/", create_subscription, name="create_subscription"),
     path("revenuecat-webhook/", revenuecat_webhook, name="revenuecat_webhook"),
+    path('admin/gmail/oauth/start/', gmail_oauth_start, name='gmail_oauth_start'),
+    path('admin/gmail/oauth/callback/', gmail_oauth_callback, name='gmail_oauth_callback'),
+    path('admin/gmail/oauth/status/', gmail_oauth_status, name='gmail_oauth_status'),
 ]
 
 
