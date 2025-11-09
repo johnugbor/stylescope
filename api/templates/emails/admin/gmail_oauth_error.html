@@ -1,0 +1,5 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Gmail OAuth Error</h1>
+<p>{{ error_message|default:"Something went wrong during Gmail authentication." }}</p>
+{% endblock %}

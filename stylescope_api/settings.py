@@ -12,7 +12,7 @@ DEBUG = os.getenv("DEBUG", "True") == "True"
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
-    "138.68.16.227",
+    "192.168.1.222",
 ]
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
@@ -30,8 +30,10 @@ INSTALLED_APPS = [
     "storages",
     "drf_spectacular",
     "rest_framework_simplejwt",
+    "gmailapi_backend",
     # Local apps
     "api",
+
 ]
 
 MIDDLEWARE = [
@@ -108,70 +110,45 @@ CORS_ALLOW_ALL_ORIGINS = True # For development; restrict in production
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
-# Task configuration
-CELERY_TASK_SOFT_TIME_LIMIT = 300  # 5 minutes soft limit
-CELERY_TASK_TIME_LIMIT = 420      # 7 minutes hard limit
-CELERY_TASK_ACKS_LATE = True
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+# File Storage (AWS S3 or MinIO)
+# if os.getenv("USE_S3") == "True":
+#     AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+#     AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+#     AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+#     AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+#     #AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL", None) # For MinIO
+#     AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com'
+#     AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+#     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+#     AWS_LOCATION = 'media' # All media files will be stored in a 'media' folder in the bucket
+#     MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/'
 
-# Memory management (relaxed for larger RAM)
-CELERY_WORKER_MAX_TASKS_PER_CHILD = 50   # Back to original
-CELERY_WORKER_MAX_MEMORY_PER_CHILD = 200000  # 200MB limit
+# else:
 
-
-# AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-# AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-2')
-# AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-# AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# MEDIA_URL = f'https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/'
-if USE_S3:
-    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'us-east-2')
-    AWS_S3_CUSTOM_DOMAIN = f'{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com'
-
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-    STATIC_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/static/'
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/media/'
-else:
-    STATIC_URL = '/static/'
-    MEDIA_URL = '/media/'
-    STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
-
-# AWS_ACCESS_KEY_ID = 'minioadmin'
-# AWS_SECRET_ACCESS_KEY = 'minioadmin'
-# AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
-# AWS_S3_ENDPOINT_URL = 'http://minio:9000'
-# AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
+AWS_ACCESS_KEY_ID = 'minioadmin'
+AWS_SECRET_ACCESS_KEY = 'minioadmin'
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME")
+AWS_S3_ENDPOINT_URL = 'http://minio:9000'
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME")
 #DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 #MEDIA_URL = '/media/'
 #MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
 # Media URL now points to MinIO, not local /media/
-#MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
+MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/"
 
-# Email Configuration
-#EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", 'django.core.mail.backends.smtp.EmailBackend')
+# Email Configuration - Gmail API
+EMAIL_BACKEND = 'gmailapi_backend.mail.GmailBackend'
 
-#if EMAIL_BACKEND == 'django.core.mail.backends.smtp.EmailBackend':
-    # SMTP email settings
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"    
-EMAIL_HOST = os.getenv("EMAIL_HOST", 'smtp.gmail.com')
-EMAIL_PORT =  587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")
-
-
-# Fallback default
-DEFAULT_FROM_EMAIL = "devjohnique@gmail.com"
-
-
+# Gmail API Credentials (get these from Google Cloud Console)
+GMAIL_API_CLIENT_ID = os.getenv("GMAIL_API_CLIENT_ID", '557908066525-o4ratkh4q6qnm8d3jbsf0f6461tknvdo.apps.googleusercontent.com')
+GMAIL_API_CLIENT_SECRET = os.getenv("GMAIL_API_CLIENT_SECRET", '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')
+GMAIL_API_REFRESH_TOKEN = os.getenv("GMAIL_API_REFRESH_TOKEN", 'YOUR_REFRESH_TOKEN_GOES_HERE')
+GMAIL_CREDENTIALS_FILE= os.getenv("GMAIL_CREDENTIALS_FILE", os.path.join(BASE_DIR, 'gmail_credentials.json'))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", 'devjohnique@gmail.com')
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", 'devjohnique@gmail.com')
+EMAIL_AUTH_REDIRECT_URI = os.getenv("EMAIL_AUTH_REDIRECT_URI", "http://localhost:8082/api/v1/admin/gmail/callback/")
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
 # Google Gemini API Key
@@ -184,12 +161,9 @@ SPECTACULAR_SETTINGS = {
     'SERVE_INCLUDE_SCHEMA': False,
 }
 
-
-
-
-# STATIC_URL = '/static/'
-# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # If you're using django-storages with MinIO (which you seem to be)
 # You might also need:
-#STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
