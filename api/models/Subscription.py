@@ -26,7 +26,7 @@ class UserSubscription(BaseModel):
     plan = models.ForeignKey(SubscriptionPlan, on_delete=models.CASCADE)
     start_date = models.DateTimeField(default=timezone.now)
     end_date = models.DateTimeField()
-    remaining_credits = models.PositiveIntegerField()
+    remaining_credits = models.PositiveIntegerField(default=5)
     auto_renew = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
     revenuecat_id = models.CharField(max_length=100, blank=True, null=True)
