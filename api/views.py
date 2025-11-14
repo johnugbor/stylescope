@@ -1033,3 +1033,67 @@ def gmail_oauth_status(request):
         'token_valid': token_valid,
         'token_file': settings.GMAIL_TOKEN_FILE,
     })
+
+
+class WaitlistNotificationView(APIView):
+    permission_classes = [IsAuthenticated]  # Only authenticated admin users
+    
+    def post(self, request):
+        """Send Play Store notification to waitlist emails"""
+        emails = request.data.get('emails', [])
+        
+        if not emails:
+            return Response({
+                'error': 'No email addresses provided'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not isinstance(emails, list):
+            return Response({
+                'error': 'Emails must be provided as a list'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        successful_sends = 0
+        failed_sends = 0
+        errors = []
+        
+        for email in emails:
+            try:
+                # Validate email format
+                from django.core.validators import validate_email
+                validate_email(email)
+                
+                # Prepare email context
+                context = {
+                    'logo_url': 'https://stylescope-bucket.s3.amazonaws.com/uploads/10/Clothing_Item_1763126141776_1763126141777.jpg',
+                    'playstore_url': 'https://play.google.com/store/apps/details?id=com.stylescope.android',
+                    'app_name': 'Stylescope'
+                }
+                
+                # Render email template
+                html_message = render_to_string('emails/waitlist_notification.html', context)
+                
+                # Send email using custom Gmail API
+                success = gmail_send_email(
+                    to_email=email,
+                    subject='🎉 Stylescope is now available on Google Play Store!',
+                    body=html_message,
+                    is_html=True
+                )
+                
+                if success:
+                    successful_sends += 1
+                else:
+                    failed_sends += 1
+                    errors.append(f"Failed to send to {email}")
+                    
+            except Exception as e:
+                failed_sends += 1
+                errors.append(f"Error sending to {email}: {str(e)}")
+        
+        return Response({
+            'message': f'Waitlist notification process completed',
+            'successful_sends': successful_sends,
+            'failed_sends': failed_sends,
+            'total_emails': len(emails),
+            'errors': errors if errors else None
+        }, status=status.HTTP_200_OK)
