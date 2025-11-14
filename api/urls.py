@@ -4,7 +4,7 @@ from .views import (
     HumanModelViewSet, ClothingItemViewSet, PageViewSet, PageItemViewSet,
     JobViewSet, PresignUploadView, RegisterView, GlobalEditView, SubscriptionView,
     UserProfileView, SupportViewSet, PasswordResetRequestView, PasswordResetVerifyView, PasswordResetCheckView,
-    EmailVerificationView, EmailVerificationResendView,
+    EmailVerificationView, EmailVerificationResendView, WaitlistNotificationView,
     consume_credit, create_subscription, revenuecat_webhook,gmail_oauth_start, gmail_oauth_callback, gmail_oauth_status 
 )
 
@@ -30,6 +30,9 @@ urlpatterns = [
     # Email Verification endpoints
     path('auth/email-verification/verify/', EmailVerificationView.as_view(), name='email-verification-verify'),
     path('auth/email-verification/resend/', EmailVerificationResendView.as_view(), name='email-verification-resend'),
+    
+    # Waitlist Notification endpoint
+    path('admin/waitlist/notify/', WaitlistNotificationView.as_view(), name='waitlist-notification'),
     
     # This nested route is tricky for standard routers, handled via a custom action
     path('pages/<uuid:page_pk>/items/<uuid:item_pk>/auto-edit/', 
