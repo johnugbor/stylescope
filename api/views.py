@@ -934,11 +934,11 @@ def gmail_oauth_start(request):
     # Hardcoded credentials - replace with your actual values from Google Cloud Console
     client_config = {
         "web": {
-            "client_id": "557908066525-o4ratkh4q6qnm8d3jbsf0f6461tknvdo.apps.googleusercontent.com",
-            "client_secret": "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",
+            "client_id":settings.GMAIL_CLIENT_ID,
+            "client_secret":  settings.GMAIL_CLIENT_SECRET,
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": ["http://localhost:8082/api/v1/admin/gmail/oauth/callback/"]
+            "redirect_uris": [settings.GMAIL_OAUTH_CALLBACK_URL]
         }
     }
     
@@ -946,7 +946,7 @@ def gmail_oauth_start(request):
     flow = Flow.from_client_config(
         client_config,
         scopes=SCOPES,
-        redirect_uri=request.build_absolute_uri('/api/v1/admin/gmail/oauth/callback/')
+        redirect_uri=settings.GMAIL_OAUTH_CALLBACK_URL
     )
     
     authorization_url, state = flow.authorization_url(
@@ -970,11 +970,11 @@ def gmail_oauth_callback(request):
         # Same hardcoded credentials
         client_config = {
             "web": {
-                "client_id": "557908066525-o4ratkh4q6qnm8d3jbsf0f6461tknvdo.apps.googleusercontent.com",
-                "client_secret": "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",
+                "client_id":settings.GMAIL_CLIENT_ID,
+                "client_secret":  settings.GMAIL_CLIENT_SECRET,
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": ["http://localhost:8082/api/v1/admin/gmail/oauth/callback/"]
+                "redirect_uris": [settings.GMAIL_OAUTH_CALLBACK_URL]
             }
         }
         
@@ -982,7 +982,7 @@ def gmail_oauth_callback(request):
             client_config,
             scopes=SCOPES,
             state=state,
-            redirect_uri=request.build_absolute_uri('/api/v1/admin/gmail/oauth/callback/')
+            redirect_uri=settings.GMAIL_OAUTH_CALLBACK_URL
         )
         
         # Get the authorization response
