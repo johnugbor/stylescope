@@ -974,7 +974,7 @@ def gmail_oauth_callback(request):
                 "client_secret": "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",
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                 "token_uri": "https://oauth2.googleapis.com/token",
-                "redirect_uris": ["https://api.callho.com/api/v1/admin/gmail/oauth/callback/"]
+                "redirect_uris": ["http://localhost:8082/api/v1/admin/gmail/oauth/callback/"]
             }
         }
         
