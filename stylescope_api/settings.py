@@ -171,6 +171,11 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", 'devjohnique@gmail.com')
 EMAIL_AUTH_REDIRECT_URI = os.getenv("EMAIL_AUTH_REDIRECT_URI", "http://localhost:8082/api/v1/admin/gmail/callback/")
 
 
+# Gmail OAuth Configuration
+GMAIL_CLIENT_ID = os.getenv('GMAIL_CLIENT_ID')
+GMAIL_CLIENT_SECRET = os.getenv('GMAIL_CLIENT_SECRET') 
+GMAIL_OAUTH_CALLBACK_URL = os.getenv('GMAIL_OAUTH_CALLBACK_URL', 'http://localhost:8082/api/v1/admin/gmail/oauth/callback/')
+
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 GOOGLE_CLOUD_LOCATION = os.getenv("GOOGLE_CLOUD_LOCATION")
 # Google Gemini API Key

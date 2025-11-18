@@ -716,7 +716,7 @@ class PasswordResetRequestView(APIView):
                 # Send email using custom Gmail API
                 success = gmail_send_email(
                     to_email=reset_token.user.email,
-                    subject='Stylescope - Password Reset Verification Code',
+                    subject=f'{reset_token.code} Stylescope - Password Reset Verification Code',
                     body=html_message,
                     is_html=True
                 )
@@ -898,7 +898,7 @@ class EmailVerificationResendView(APIView):
         # Send email using custom Gmail API
         success = gmail_send_email(
             to_email=user.email,
-            subject='Stylescope - Email Verification Required',
+            subject=f'{verification_token.code} Stylescope - Email Verification Required',
             body=html_message,
             is_html=True
         )
