@@ -6,6 +6,10 @@ from .models.pages import Page, PageItem
 from .models.jobs import EditJob
 from .models.Subscription import    UserSubscription,SubscriptionPlan
 from .models.support import  Support,SupportMessage
+from .models.christmas import (
+    ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
+    PaymentCode, ChristmasTryOn, CreditTransaction
+)
 class UserAdmin(BaseUserAdmin):
     ordering = ('email',)
     list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_active','is_email_verified')
@@ -185,5 +189,149 @@ class SupportMessageAdmin(admin.ModelAdmin):
     def message_preview(self, obj):
         return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
     message_preview.short_description = 'Message Preview'
+
+# ==================== CHRISTMAS MODULE ADMIN ====================
+
+@admin.register(ChristmasUser)
+class ChristmasUserAdmin(admin.ModelAdmin):
+    list_display = ('email', 'first_name', 'last_name', 'credits', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('email', 'first_name', 'last_name')
+    readonly_fields = ('id', 'password', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('Account Info', {
+            'fields': ('id', 'email', 'password', 'first_name', 'last_name')
+        }),
+        ('Credits & Status', {
+            'fields': ('credits', 'is_active')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ChristmasCloth)
+class ChristmasClothAdmin(admin.ModelAdmin):
+    list_display = ('name', 'category', 'is_active', 'order_index', 'created_at')
+    list_filter = ('is_active', 'category', 'created_at')
+    search_fields = ('name', 'description', 'category')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('order_index', 'name')
+    
+    fieldsets = (
+        ('Basic Info', {
+            'fields': ('id', 'name', 'description', 'category')
+        }),
+        ('Image', {
+            'fields': ('image_url',)
+        }),
+        ('Display Settings', {
+            'fields': ('is_active', 'order_index')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(MyPicture)
+class MyPictureAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'session_id', 'is_primary', 'created_at')
+    list_filter = ('is_primary', 'created_at')
+    search_fields = ('user__email', 'session_id')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+
+
+@admin.register(CreditBundle)
+class CreditBundleAdmin(admin.ModelAdmin):
+    list_display = ('name', 'credits', 'price', 'discount_percentage', 'is_active', 'order_index')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name',)
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('order_index', 'price')
+    
+    fieldsets = (
+        ('Bundle Info', {
+            'fields': ('id', 'name', 'credits', 'price', 'discount_percentage')
+        }),
+        ('Display Settings', {
+            'fields': ('is_active', 'order_index')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(PaymentCode)
+class PaymentCodeAdmin(admin.ModelAdmin):
+    list_display = ('code', 'amount', 'credits', 'is_used', 'used_by', 'expires_at', 'created_at')
+    list_filter = ('is_used', 'created_at', 'expires_at')
+    search_fields = ('code', 'used_by__email', 'session_id')
+    readonly_fields = ('id', 'code', 'is_used', 'used_by', 'used_at', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.code:
+            obj.code = PaymentCode.generate_code()
+        super().save_model(request, obj, form, change)
+
+
+@admin.register(ChristmasTryOn)
+class ChristmasTryOnAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'session_id', 'christmas_cloth', 'status', 'was_paid', 'created_at', 'completed_at')
+    list_filter = ('status', 'was_paid', 'created_at', 'completed_at')
+    search_fields = ('user__email', 'session_id', 'christmas_cloth__name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('Try-On Info', {
+            'fields': ('id', 'user', 'session_id', 'christmas_cloth', 'my_picture')
+        }),
+        ('Status', {
+            'fields': ('status', 'result_image_url', 'error_message')
+        }),
+        ('Payment', {
+            'fields': ('payment_code', 'was_paid')
+        }),
+        ('Timing', {
+            'fields': ('created_at', 'completed_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(CreditTransaction)
+class CreditTransactionAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'transaction_type', 'amount', 'balance_after', 'created_at')
+    list_filter = ('transaction_type', 'created_at')
+    search_fields = ('user__email', 'notes')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('Transaction Info', {
+            'fields': ('id', 'user', 'transaction_type', 'amount', 'balance_after')
+        }),
+        ('Related Objects', {
+            'fields': ('payment_code', 'credit_bundle', 'try_on')
+        }),
+        ('Details', {
+            'fields': ('notes',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
 
 admin.site.register(User, UserAdmin)
