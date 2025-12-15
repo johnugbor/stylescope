@@ -301,18 +301,19 @@ def process_christmas_try_on(self, try_on_id):
         del person_bytes, cloth_bytes
         
         # Christmas-specific prompt
-        prompt = """You are a virtual Christmas fashion try-on AI. Your task is to create a realistic festive image.
+        prompt = """
+                You are a virtual fashion try-on AI. Your task is to create a realistic image of the person wearing the provided clothing item.
 
-Instructions:
-1. Take the Christmas clothing/outfit/accessory from the second image
-2. Realistically place it on the person from the first image
-3. Preserve the person's face, body shape, pose, and background
-4. Make the Christmas clothing fit naturally with proper draping and shadows
-5. Keep the festive colors, holiday spirit, and Christmas theme
-6. Ensure the final result looks photorealistic and professional
-7. Return ONLY the person wearing the Christmas outfit - no split screens or multiple images
+        Instructions:
+        1. Take the clothing item from the second image
+        2. Realistically place it on the person from the first image
+        3. Preserve the person's face, body shape, pose, and christmas tree, gift box to background
+        4. Make the clothing fit naturally with proper draping and shadows
+        5. Ensure the final result looks photorealistic
+        6. Return ONLY the person wearing the new clothing - no split screens or multiple images
 
-The output should be a single high-quality image of the person wearing the Christmas outfit."""
+        The output should be a single image of the person wearing the clothing item.
+            """
 
         logger.info("Sending request to Gemini API for Christmas try-on...")
         
