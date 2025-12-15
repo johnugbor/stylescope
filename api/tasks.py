@@ -252,3 +252,132 @@ def process_image_edit(job_id):
         job.status = EditJob.JobStatus.FAILED
         job.error_message = str(e)
         job.save()
+
+
+# ==================== CHRISTMAS TRY-ON TASK ====================
+
+@shared_task(
+    soft_time_limit=120,
+    time_limit=180,
+    bind=True,
+    autoretry_for=(Exception,),
+    retry_backoff=True,
+    retry_kwargs={'max_retries': 2}
+)
+def process_christmas_try_on(self, try_on_id):
+    """
+    Process a Christmas try-on job using Gemini AI.
+    Uses separate images for better quality results.
+    """
+    from .models.christmas import ChristmasTryOn
+    
+    try:
+        try_on = ChristmasTryOn.objects.get(id=try_on_id)
+        try_on.status = ChristmasTryOn.JobStatus.PROCESSING
+        try_on.save()
+        
+        # Download images
+        logger.info(f"Processing Christmas try-on {try_on_id}")
+        person_bytes = download_image_bytes(try_on.my_picture.image_url)
+        cloth_bytes = download_image_bytes(try_on.christmas_cloth.image_url)
+        
+        logger.info(f"Downloaded images - Person: {len(person_bytes)} bytes, Cloth: {len(cloth_bytes)} bytes")
+        
+        # Convert to PIL Images and resize if too large
+        person_image = PILImage.open(BytesIO(person_bytes))
+        cloth_image = PILImage.open(BytesIO(cloth_bytes))
+        
+        # Resize images if they're too large (max 2048x2048)
+        max_size = 2048
+        if person_image.size[0] > max_size or person_image.size[1] > max_size:
+            person_image.thumbnail((max_size, max_size), PILImage.Resampling.LANCZOS)
+            logger.info(f"Resized person image to {person_image.size}")
+            
+        if cloth_image.size[0] > max_size or cloth_image.size[1] > max_size:
+            cloth_image.thumbnail((max_size, max_size), PILImage.Resampling.LANCZOS)
+            logger.info(f"Resized cloth image to {cloth_image.size}")
+        
+        # Clear bytes from memory
+        del person_bytes, cloth_bytes
+        
+        # Christmas-specific prompt
+        prompt = """You are a virtual Christmas fashion try-on AI. Your task is to create a realistic festive image.
+
+Instructions:
+1. Take the Christmas clothing/outfit/accessory from the second image
+2. Realistically place it on the person from the first image
+3. Preserve the person's face, body shape, pose, and background
+4. Make the Christmas clothing fit naturally with proper draping and shadows
+5. Keep the festive colors, holiday spirit, and Christmas theme
+6. Ensure the final result looks photorealistic and professional
+7. Return ONLY the person wearing the Christmas outfit - no split screens or multiple images
+
+The output should be a single high-quality image of the person wearing the Christmas outfit."""
+
+        logger.info("Sending request to Gemini API for Christmas try-on...")
+        
+        try:
+            # Send images separately to Gemini (better quality than combined)
+            model = genai.GenerativeModel("gemini-2.5-flash-image-preview")
+            response = model.generate_content([
+                "Person to dress:",
+                person_image,
+                "Christmas clothing/outfit to apply:",
+                cloth_image,
+                prompt
+            ])
+            
+            logger.info("Received response from Gemini model.")
+            
+        except Exception as gemini_error:
+            logger.error(f"Gemini API error: {gemini_error}")
+            # Clear images from memory before re-raising
+            del person_image, cloth_image
+            raise Exception(f"Gemini API failed: {str(gemini_error)}")
+        
+        # Clear input images from memory
+        del person_image, cloth_image
+        
+        # Extract generated image
+        generated_image_data = None
+        if response.candidates:
+            for part in response.candidates[0].content.parts:
+                if hasattr(part, 'inline_data') and part.inline_data:
+                    generated_image_data = part.inline_data.data
+                    break
+        
+        if not generated_image_data:
+            logger.error(f"No image generated. Response: {response}")
+            raise Exception("Model did not return an image.")
+        
+        logger.info(f"Generated image bytes, size: {len(generated_image_data)}")
+        
+        # Upload result
+        result_filename = f"{try_on_id}_result_{int(time.time())}.png"
+        result_url = upload_image_to_storage(generated_image_data, result_filename)
+        
+        # Update job
+        try_on.status = ChristmasTryOn.JobStatus.COMPLETED
+        try_on.result_image_url = result_url
+        try_on.completed_at = timezone.now()
+        try_on.save()
+        
+        logger.info(f"Christmas try-on {try_on_id} completed successfully - Result: {result_url}")
+        
+        # Force garbage collection
+        gc.collect()
+        
+    except ChristmasTryOn.DoesNotExist:
+        logger.error(f"Christmas try-on {try_on_id} not found")
+    except SoftTimeLimitExceeded:
+        logger.error(f"Christmas try-on {try_on_id} timed out")
+        try_on.status = ChristmasTryOn.JobStatus.FAILED
+        try_on.error_message = "Processing timed out. Please try again."
+        try_on.save()
+        gc.collect()
+    except Exception as e:
+        logger.error(f"Error processing Christmas try-on {try_on_id}: {e}")
+        try_on.status = ChristmasTryOn.JobStatus.FAILED
+        try_on.error_message = str(e)
+        try_on.save()
+        gc.collect()

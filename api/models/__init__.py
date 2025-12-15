@@ -5,4 +5,5 @@ from .jobs import *
 from .pages import *
 from .Subscription import *
 from .support import *
+from .christmas import *  # Christmas try-on module
 # ... other imports

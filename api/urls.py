@@ -43,6 +43,9 @@ urlpatterns = [
     path('admin/gmail/oauth/start/', gmail_oauth_start, name='gmail_oauth_start'),
     path('admin/gmail/oauth/callback/', gmail_oauth_callback, name='gmail_oauth_callback'),
     path('admin/gmail/oauth/status/', gmail_oauth_status, name='gmail_oauth_status'),
+    
+    # Christmas Try-On Module (Standalone)
+    path('christmas/', include('api.urls_christmas')),
 ]
 
 
