@@ -307,10 +307,11 @@ def process_christmas_try_on(self, try_on_id):
         Instructions:
         1. Take the clothing item from the second image
         2. Realistically place it on the person from the first image
-        3. Preserve the person's face, body shape, pose, remove foot wear if present, and christmas tree, gift box to background
-        4. Make the clothing fit naturally with proper draping and shadows
-        5. Ensure the final result looks photorealistic
-        6. Return ONLY the person wearing the new clothing - no split screens or multiple images
+        4. No footwear
+        5. Preserve the person's face, body shape, pose, and christmas tree, gift box to background
+        6. Make the clothing fit naturally with proper draping and shadows
+        7. Ensure the final result looks photorealistic
+        8. Return ONLY the person wearing the new clothing - no split screens or multiple images
 
         The output should be a single image of the person wearing the clothing item.
             """
