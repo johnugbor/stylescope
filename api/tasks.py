@@ -302,18 +302,21 @@ def process_christmas_try_on(self, try_on_id):
         
         # Christmas-specific prompt
         prompt = """
-                You are a virtual fashion try-on AI. Your task is to create a realistic image of the person wearing the provided clothing item.
+        You are a virtual fashion try-on AI, specializing in photorealistic garment swapping.
 
-        Instructions:
-        1. Take the clothing item from the second image
-        2. Realistically place it on the person from the first image
-        3. Preserve the person's face, body shape, pose, and christmas tree, gift box to background
-        4. Make the clothing fit naturally with proper draping and shadows
-        5. Ensure the final result looks photorealistic
-        6. Return ONLY the person wearing the new clothing - no split screens or multiple images
+        Your primary task is to transfer the Christmas-themed clothing item from the **second image** onto the person in the **first image**.
 
-        The output should be a single image of the person wearing the clothing item.
-            """
+        Instructions for the Output Image:
+        1.  **Garment Transfer:** Accurately place the clothing item from the second image onto the model in the first image.
+        2.  **Preservation of Identity:** Strictly preserve the person's face, skin tone, hair, body shape, and original pose.
+        3.  **Realism & Fit:**
+            * **Footwear Removal:** **Remove all footwear.** If the person's feet are visible, they must be rendered naturally (barefoot). If the feet are not visible in the original image, ensure the garment ends realistically (e.g., trousers naturally drape to the floor/ankle).
+            * Ensure the garment fits the body shape and pose **naturally and realistically**.
+            * Simulate proper draping, folds, wrinkles, and shadows based on the person's pose and the light source.
+            * The texture and print of the Christmas garment must be high-fidelity.
+        4.  **Background Integration:** Maintain the original background of the first image, including the Christmas tree and gift box, ensuring the new garment integrates seamlessly with the environment's lighting.
+        5.  **Output Format:** The final output **must be a single, photorealistic image** of the person wearing the new clothing. Do not include split screens, before/after comparisons, or any text/borders.
+        """
 
         logger.info("Sending request to Gemini API for Christmas try-on...")
         
