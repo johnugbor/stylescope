@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     HumanModelViewSet, ClothingItemViewSet, PageViewSet, PageItemViewSet,
-    JobViewSet, PresignUploadView, RegisterView, GlobalEditView, SubscriptionView,
+    JobViewSet, PresignUploadView, ChristmasPresignUploadView, RegisterView, GlobalEditView, SubscriptionView,
     UserProfileView, SupportViewSet, PasswordResetRequestView, PasswordResetVerifyView, PasswordResetCheckView,
     EmailVerificationView, EmailVerificationResendView, WaitlistNotificationView,
     consume_credit, create_subscription, revenuecat_webhook,gmail_oauth_start, gmail_oauth_callback, gmail_oauth_status 
@@ -18,6 +18,7 @@ router.register(r'support', SupportViewSet, basename='support')
 urlpatterns = [
     path('', include(router.urls)),
     path('storage/presign/', PresignUploadView.as_view(), name='presign-upload'),
+    path('storage/christmass-presign/', ChristmasPresignUploadView.as_view(), name='christmas-presign-upload'),
     path('auto-edit-all-pages/', GlobalEditView.as_view(), name='auto-edit-all'),
     path('subscription/', SubscriptionView.as_view(), name='subscription-info'),
     path('profile/', UserProfileView.as_view(), name='user-profile'),
