@@ -4,7 +4,8 @@ from .views_christmas import (
     ChristmasUserRegisterView, ChristmasUserLoginView, ChristmasUserLogoutView,
     ChristmasUserProfileView, ChristmasClothViewSet, MyPictureViewSet,
     CreditBundleViewSet, PaymentCodeVerifyView, CreditPurchaseView,
-    ChristmasTryOnViewSet, CreditTransactionListView, christmas_pricing_info
+    ChristmasTryOnViewSet, CreditTransactionListView, christmas_pricing_info,
+    PaystackPaymentInitiateView, get_payment_code, paystack_webhook
 )
 
 router = DefaultRouter()
@@ -27,6 +28,11 @@ urlpatterns = [
     
     # Pricing
     path('pricing/', christmas_pricing_info, name='christmas-pricing'),
+    
+    # Paystack Payments
+    path('payment/initiate/', PaystackPaymentInitiateView.as_view(), name='paystack-initiate'),
+    path('payment/code/<str:reference>/', get_payment_code, name='get-payment-code'),
+    path('payment/webhook/', paystack_webhook, name='paystack-webhook'),
     
     # Router URLs
     path('', include(router.urls)),

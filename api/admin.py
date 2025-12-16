@@ -8,7 +8,7 @@ from .models.Subscription import    UserSubscription,SubscriptionPlan
 from .models.support import  Support,SupportMessage
 from .models.christmas import (
     ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
-    PaymentCode, ChristmasTryOn, CreditTransaction
+    PaymentCode, ChristmasTryOn, CreditTransaction, PaystackTransaction
 )
 class UserAdmin(BaseUserAdmin):
     ordering = ('email',)
@@ -326,6 +326,28 @@ class CreditTransactionAdmin(admin.ModelAdmin):
         }),
         ('Details', {
             'fields': ('notes',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(PaystackTransaction)
+class PaystackTransactionAdmin(admin.ModelAdmin):
+    list_display = ('reference', 'user', 'session_id', 'amount', 'status', 'created_at')
+    list_filter = ('status', 'created_at')
+    search_fields = ('reference', 'user__email', 'session_id', 'paystack_reference')
+    readonly_fields = ('id', 'reference', 'created_at', 'updated_at')
+    ordering = ('-created_at',)
+    
+    fieldsets = (
+        ('Transaction Info', {
+            'fields': ('id', 'reference', 'user', 'session_id', 'amount', 'status')
+        }),
+        ('Paystack Details', {
+            'fields': ('paystack_reference', 'payment_code')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

@@ -8,10 +8,14 @@ from django.utils import timezone
 from django.db import transaction
 from datetime import timedelta
 import uuid
+import json
+import hmac
+import hashlib
+from django.conf import settings
 
 from .models.christmas import (
     ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
-    PaymentCode, ChristmasTryOn, CreditTransaction
+    PaymentCode, ChristmasTryOn, CreditTransaction, PaystackTransaction
 )
 from .serializers_christmas import (
     ChristmasUserSerializer, ChristmasUserLoginSerializer,
@@ -316,7 +320,7 @@ class ChristmasTryOnViewSet(viewsets.ModelViewSet):
         
         if not session_id:
             request.session.create()
-            session_id = request.session.session_key
+            session_id = request.request.session.session_key
         
         christmas_cloth = ChristmasCloth.objects.get(id=serializer.validated_data['christmas_cloth_id'])
         my_picture = MyPicture.objects.get(id=serializer.validated_data['my_picture_id'])
@@ -362,9 +366,57 @@ class ChristmasTryOnViewSet(viewsets.ModelViewSet):
                         )
                     
                     else:
-                        return Response({
-                            'error': 'Insufficient credits. Please purchase credits or provide a payment code.'
-                        }, status=status.HTTP_402_PAYMENT_REQUIRED)
+                        # Initiate Paystack payment
+                        import requests
+                        
+                        # Generate unique reference
+                        reference = f"christmas-tryon-{uuid.uuid4().hex[:16]}"
+                        
+                        # Amount in kobo (600 naira = 60000 kobo)
+                        amount_kobo = 60000
+                        
+                        # Create Paystack transaction record
+                        paystack_txn = PaystackTransaction.objects.create(
+                            user=christmas_user,
+                            reference=reference,
+                            amount=600.00  # Naira
+                        )
+                        
+                        # Paystack API call
+                        url = "https://api.paystack.co/transaction/initialize"
+                        headers = {
+                            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                            "Content-Type": "application/json"
+                        }
+                        data = {
+                            "email": christmas_user.email,
+                            "amount": amount_kobo,
+                            "reference": reference,
+                            "callback_url": request.build_absolute_uri('/christmas/payment/callback'),  # Adjust as needed
+                            "metadata": {
+                                "user_id": str(christmas_user.id),
+                                "type": "christmas_tryon"
+                            }
+                        }
+                        
+                        response = requests.post(url, headers=headers, json=data)
+                        response_data = response.json()
+                        
+                        if response_data.get('status'):
+                            return Response({
+                                'payment_required': True,
+                                'reference': reference,
+                                'payment_url': response_data['data']['authorization_url'],
+                                'amount': 600,
+                                'currency': 'NGN',
+                                'message': 'Please complete payment to proceed with try-on'
+                            }, status=status.HTTP_402_PAYMENT_REQUIRED)
+                        else:
+                            paystack_txn.status = PaystackTransaction.PaymentStatus.FAILED
+                            paystack_txn.save()
+                            return Response({
+                                'error': 'Failed to initiate payment'
+                            }, status=status.HTTP_400_BAD_REQUEST)
                 
                 # Non-logged in user - must pay
                 else:
@@ -438,3 +490,176 @@ def christmas_pricing_info(request):
             ]
         }
     })
+
+
+# === PAYSTACK PAYMENT VIEWS ===
+
+class PaystackPaymentInitiateView(APIView):
+    """Initiate Paystack payment for Christmas try-on"""
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        import requests
+        
+        christmas_user = get_christmas_user_from_request(request)
+        session_id = request.session.session_key
+        
+        if not session_id:
+            request.session.create()
+            session_id = request.session.session_key
+        
+        # Generate unique reference
+        reference = f"christmas-tryon-{uuid.uuid4().hex[:16]}"
+        
+        # Amount in kobo (600 naira = 60000 kobo)
+        amount_kobo = 60000
+        
+        # Create Paystack transaction record
+        paystack_txn = PaystackTransaction.objects.create(
+            user=christmas_user,
+            session_id=session_id if not christmas_user else '',
+            reference=reference,
+            amount=600.00  # Naira
+        )
+        
+        # Paystack API call
+        url = "https://api.paystack.co/transaction/initialize"
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "email": christmas_user.email if christmas_user else "guest@example.com",
+            "amount": amount_kobo,
+            "reference": reference,
+            "callback_url": "http://localhost:3000/christmas/payment/callback",  # Frontend callback
+            "metadata": {
+                "user_id": str(christmas_user.id) if christmas_user else None,
+                "session_id": session_id,
+                "type": "christmas_tryon"
+            }
+        }
+        
+        try:
+            response = requests.post(url, headers=headers, json=data)
+            response_data = response.json()
+            
+            if response_data.get('status'):
+                return Response({
+                    'reference': reference,
+                    'payment_url': response_data['data']['authorization_url'],
+                    'amount': 600,
+                    'currency': 'NGN'
+                })
+            else:
+                paystack_txn.status = PaystackTransaction.PaymentStatus.FAILED
+                paystack_txn.save()
+                return Response({
+                    'error': 'Failed to initiate payment'
+                }, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            paystack_txn.status = PaystackTransaction.PaymentStatus.FAILED
+            paystack_txn.save()
+            return Response({
+                'error': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_payment_code(request, reference):
+    """Get payment code after successful Paystack payment"""
+    try:
+        paystack_txn = PaystackTransaction.objects.get(reference=reference)
+        
+        if paystack_txn.status != PaystackTransaction.PaymentStatus.SUCCESS:
+            return Response({
+                'error': 'Payment not completed yet'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not paystack_txn.payment_code:
+            return Response({
+                'error': 'Payment code not generated yet'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response({
+            'payment_code': paystack_txn.payment_code.code,
+            'credits': paystack_txn.payment_code.credits
+        })
+        
+    except PaystackTransaction.DoesNotExist:
+        return Response({
+            'error': 'Invalid reference'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def paystack_webhook(request):
+    """Handle Paystack webhook for payment verification"""
+    import requests
+    
+    # Verify webhook signature
+    paystack_signature = request.headers.get('x-paystack-signature')
+    if not paystack_signature:
+        return Response({'error': 'Invalid signature'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Compute expected signature
+    secret = settings.PAYSTACK_SECRET_KEY.encode('utf-8')
+    body = request.body
+    expected_signature = hmac.new(secret, body, hashlib.sha512).hexdigest()
+    
+    if not hmac.compare_digest(paystack_signature, expected_signature):
+        return Response({'error': 'Invalid signature'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Parse webhook data
+    try:
+        data = json.loads(body)
+        event = data.get('event')
+        
+        if event == 'charge.success':
+            payment_data = data.get('data', {})
+            reference = payment_data.get('reference')
+            
+            # Update transaction
+            try:
+                paystack_txn = PaystackTransaction.objects.get(reference=reference)
+                paystack_txn.status = PaystackTransaction.PaymentStatus.SUCCESS
+                paystack_txn.paystack_reference = payment_data.get('id')
+                paystack_txn.save()
+                
+                # Generate payment code
+                from datetime import timedelta
+                expires_at = timezone.now() + timedelta(days=30)
+                code = PaymentCode.generate_code()
+                
+                payment_code = PaymentCode.objects.create(
+                    code=code,
+                    amount=600.00,
+                    credits=1,
+                    expires_at=expires_at,
+                    session_id=paystack_txn.session_id
+                )
+                
+                paystack_txn.payment_code = payment_code
+                paystack_txn.save()
+                
+                # If user is logged in, add credits immediately
+                if paystack_txn.user:
+                    paystack_txn.user.add_credits(1)
+                    CreditTransaction.objects.create(
+                        user=paystack_txn.user,
+                        transaction_type=CreditTransaction.TransactionType.PURCHASE,
+                        amount=1,
+                        balance_after=paystack_txn.user.credits,
+                        notes=f"Paystack payment {reference}"
+                    )
+                
+            except PaystackTransaction.DoesNotExist:
+                pass  # Invalid reference
+        
+        return Response({'status': 'ok'})
+        
+    except json.JSONDecodeError:
+        return Response({'error': 'Invalid JSON'}, status=status.HTTP_400_BAD_REQUEST)
