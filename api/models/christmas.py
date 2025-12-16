@@ -142,6 +142,26 @@ class PaymentCode(BaseModel):
         return self.credits
 
 
+class PaystackTransaction(BaseModel):
+    """Track Paystack payment transactions"""
+    
+    class PaymentStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
+    
+    user = models.ForeignKey(ChristmasUser, on_delete=models.CASCADE, related_name="paystack_transactions", null=True, blank=True)
+    session_id = models.CharField(max_length=100, blank=True)  # For non-logged in users
+    reference = models.CharField(max_length=100, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Amount in Naira
+    status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    paystack_reference = models.CharField(max_length=100, blank=True)
+    payment_code = models.OneToOneField(PaymentCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="paystack_transaction")
+    
+    def __str__(self):
+        return f"Paystack Transaction {self.reference} - {self.status}"
+
+
 class ChristmasTryOn(BaseModel):
     """Try-on jobs for Christmas clothes"""
     
