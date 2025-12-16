@@ -61,7 +61,7 @@ class MyPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyPicture
         fields = ['id', 'image_url', 'is_primary', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'is_primary', 'created_at']
 
 
 class CreditBundleSerializer(serializers.ModelSerializer):

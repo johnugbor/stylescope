@@ -1097,3 +1097,56 @@ class WaitlistNotificationView(APIView):
             'total_emails': len(emails),
             'errors': errors if errors else None
         }, status=status.HTTP_200_OK)
+
+
+class ChristmasPresignUploadView(APIView):
+    """Generate presigned URL for S3 upload"""
+    permission_classes = [AllowAny]  # Allow anyone to upload, but you might want to restrict this
+    
+    def get(self, request):
+        file_name = request.query_params.get('file_name')
+        file_type = request.query_params.get('file_type', 'image/jpeg')
+        
+        if not file_name:
+            return Response({'error': 'file_name is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not settings.USE_S3:
+            return Response({'error': 'S3 not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        try:
+            s3_client = boto3.client(
+                's3',
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                region_name=settings.AWS_S3_REGION_NAME,
+                config=Config(signature_version='s3v4')
+            )
+            
+            # Generate unique key
+            import uuid
+            file_extension = file_name.split('.')[-1] if '.' in file_name else 'jpg'
+            unique_key = f"uploads/christmas/{uuid.uuid4()}.{file_extension}"
+            
+            # Generate presigned URL
+            presigned_url = s3_client.generate_presigned_url(
+                'put_object',
+                Params={
+                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                    'Key': unique_key,
+                    'ContentType': file_type,
+                    'ACL': 'public-read'
+                },
+                ExpiresIn=3600  # 1 hour
+            )
+            
+            # Construct the public URL
+            public_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{unique_key}"
+            
+            return Response({
+                'presigned_url': presigned_url,
+                'public_url': public_url,
+                'key': unique_key
+            })
+            
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
