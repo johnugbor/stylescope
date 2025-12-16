@@ -1579,6 +1579,23 @@ files = [
 ]
 
 [[package]]
+name = "paystackapi"
+version = "1.9.0"
+description = "A python library to consume Paystack API"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "paystackapi-1.9.0.tar.gz", hash = "sha256:1570c2990c618f68925d727823ba224f2059d6bc923e0a33bf92b53292cee6aa"},
+]
+
+[package.dependencies]
+requests = "*"
+
+[package.extras]
+test = ["coverage"]
+
+[[package]]
 name = "pillow"
 version = "10.4.0"
 description = "Python Imaging Library (Fork)"
@@ -2789,4 +2806,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "4ca55d0f6b21cbafbd33972a4668a9377b494b45f3929f174299ef95e3543d71"
+content-hash = "b69a7e44fd2a916623b5fc31f5a6aec778e7aa560d3c9188f64bb7f5c1b9074e"

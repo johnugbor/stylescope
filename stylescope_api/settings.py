@@ -15,6 +15,10 @@ ALLOWED_HOSTS = [
     "138.68.16.227",
     "api.callho.com"
 ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://api.callho.com",
+    "http://api.callho.com:8082",
+]
 
 USE_S3 = os.getenv("USE_S3", "False") == "True"
 # Application definition
@@ -187,6 +191,11 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+# Paystack Settings
+PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
+PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 
 
 
