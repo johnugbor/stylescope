@@ -1101,19 +1101,17 @@ class WaitlistNotificationView(APIView):
 
 class ChristmasPresignUploadView(APIView):
     """Generate presigned URL for S3 upload"""
-    permission_classes = [AllowAny]  # Allow anyone to upload, but you might want to restrict this
-    
-    def post(self, request):
-        file_name = request.data.get('file_name')
-        file_type = request.data.get('file_type', 'image/jpeg')
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        filename = request.data.get('filename')
+        content_type = request.data.get('content_type')
+        if not filename or not content_type:
+            return Response({"error": "filename and content_type are required"}, status=status.HTTP_400_BAD_REQUEST)
         
-        if not file_name:
-            return Response({'error': 'file_name is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not settings.USE_S3:
-            return Response({'error': 'S3 not configured'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        try:
+        object_name = f"uploads/chritsmas/{request.user.id}/{filename}"
+
+        if settings.USE_S3:
             s3_client = boto3.client(
                 's3',
                 aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
@@ -1121,32 +1119,23 @@ class ChristmasPresignUploadView(APIView):
                 region_name=settings.AWS_S3_REGION_NAME,
                 config=Config(signature_version='s3v4')
             )
-            
-            # Generate unique key
-            import uuid
-            file_extension = file_name.split('.')[-1] if '.' in file_name else 'jpg'
-            unique_key = f"uploads/christmas/{uuid.uuid4()}.{file_extension}"
-            
-            # Generate presigned URL
-            presigned_url = s3_client.generate_presigned_url(
-                'put_object',
-                Params={
-                    'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
-                    'Key': unique_key,
-                    'ContentType': file_type,
-                    'ACL': 'public-read'
-                },
-                ExpiresIn=3600  # 1 hour
-            )
-            
-            # Construct the public URL
-            public_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.{settings.AWS_S3_REGION_NAME}.amazonaws.com/{unique_key}"
-            
-            return Response({
-                'presigned_url': presigned_url,
-                'public_url': public_url,
-                'key': unique_key
-            })
-            
-        except Exception as e:
-            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            try:
+                response = s3_client.generate_presigned_post(
+                    settings.AWS_STORAGE_BUCKET_NAME,
+                    object_name,
+                    Fields={'Content-Type': content_type},
+                    Conditions=[{'Content-Type': content_type}],
+                    ExpiresIn=3600
+                )
+                return Response(response)
+            except ClientError as e:
+                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # In local dev, we don't need a presigned URL, but we can simulate the structure.
+            # The client will POST directly to a simple upload endpoint (not implemented for this MVP).
+            # For KMM, it's easier to just have it always expect a presigned URL.
+            # This part needs a local file upload handler if not using MinIO.
+            return Response({"error": "Presigning is only available with S3/MinIO storage."}, status=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+
