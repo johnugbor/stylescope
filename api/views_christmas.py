@@ -37,15 +37,29 @@ class IsChristmasUser(IsAuthenticated):
         return hasattr(request, 'christmas_user') and request.christmas_user is not None
 
 
-# Authentication Middleware Helper
+# Authentication Helper
 def get_christmas_user_from_request(request):
-    """Helper to get ChristmasUser from session"""
+    """Helper to get ChristmasUser from session or JWT token"""
+    # Check session first
     user_id = request.session.get('christmas_user_id')
     if user_id:
         try:
             return ChristmasUser.objects.get(id=user_id, is_active=True)
         except ChristmasUser.DoesNotExist:
             pass
+    
+    # Check JWT token
+    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+    if auth_header.startswith('Bearer '):
+        try:
+            from rest_framework_simplejwt.tokens import AccessToken
+            token = auth_header[7:]
+            access_token = AccessToken(token)
+            user_id = access_token['user_id']
+            return ChristmasUser.objects.get(id=user_id, is_active=True)
+        except:
+            pass
+    
     return None
 
 
@@ -109,6 +123,7 @@ class ChristmasUserLogoutView(APIView):
 class ChristmasUserProfileView(APIView):
     """Get current Christmas user profile"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     
     def get(self, request):
         christmas_user = get_christmas_user_from_request(request)
@@ -138,6 +153,7 @@ class ChristmasClothViewSet(viewsets.ReadOnlyModelViewSet):
 class MyPictureViewSet(viewsets.ModelViewSet):
     """Manage user's uploaded pictures"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = MyPictureSerializer
     
     def get_queryset(self):
@@ -194,6 +210,7 @@ class CreditBundleViewSet(viewsets.ReadOnlyModelViewSet):
 class PaymentCodeVerifyView(APIView):
     """Verify and use a payment code"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     
     def post(self, request):
         serializer = PaymentCodeVerifySerializer(data=request.data)
@@ -242,6 +259,7 @@ class PaymentCodeVerifyView(APIView):
 class CreditPurchaseView(APIView):
     """Purchase a credit bundle with payment code"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     
     def post(self, request):
         christmas_user = get_christmas_user_from_request(request)
@@ -308,6 +326,7 @@ class CreditPurchaseView(APIView):
 class ChristmasTryOnViewSet(viewsets.ModelViewSet):
     """Manage Christmas try-on jobs"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = ChristmasTryOnSerializer
     
     def get_queryset(self):
@@ -464,6 +483,7 @@ class ChristmasTryOnViewSet(viewsets.ModelViewSet):
 class CreditTransactionListView(generics.ListAPIView):
     """List user's credit transaction history"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = CreditTransactionSerializer
     
     def get_queryset(self):
@@ -475,7 +495,7 @@ class CreditTransactionListView(generics.ListAPIView):
 
 # === PRICING INFO ===
 
-@api_view(['GET'])
+@api_view(['GET'], authentication_classes=[])
 @permission_classes([AllowAny])
 def christmas_pricing_info(request):
     """Get pricing information for the Christmas try-on feature"""
@@ -506,6 +526,7 @@ def christmas_pricing_info(request):
 class PaystackPaymentInitiateView(APIView):
     """Initiate Paystack payment for Christmas try-on"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     
     def post(self, request):
         import requests
@@ -575,7 +596,7 @@ class PaystackPaymentInitiateView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'])
+@api_view(['GET'], authentication_classes=[])
 @permission_classes([AllowAny])
 def get_payment_code(request, reference):
     """Get payment code after successful Paystack payment"""
@@ -603,7 +624,7 @@ def get_payment_code(request, reference):
         }, status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['POST'])
+@api_view(['POST'], authentication_classes=[])
 @permission_classes([AllowAny])
 def paystack_webhook(request):
     """Handle Paystack webhook for payment verification"""
