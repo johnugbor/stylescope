@@ -495,7 +495,7 @@ class CreditTransactionListView(generics.ListAPIView):
 
 # === PRICING INFO ===
 
-@api_view(['GET'], authentication_classes=[])
+@api_view(['GET'])
 @permission_classes([AllowAny])
 def christmas_pricing_info(request):
     """Get pricing information for the Christmas try-on feature"""
@@ -596,7 +596,7 @@ class PaystackPaymentInitiateView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-@api_view(['GET'], authentication_classes=[])
+@api_view(['GET'])
 @permission_classes([AllowAny])
 def get_payment_code(request, reference):
     """Get payment code after successful Paystack payment"""
@@ -624,7 +624,7 @@ def get_payment_code(request, reference):
         }, status=status.HTTP_404_NOT_FOUND)
 
 
-@api_view(['POST'], authentication_classes=[])
+@api_view(['POST'])
 @permission_classes([AllowAny])
 def paystack_webhook(request):
     """Handle Paystack webhook for payment verification"""
