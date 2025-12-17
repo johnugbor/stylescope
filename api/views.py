@@ -1103,9 +1103,9 @@ class ChristmasPresignUploadView(APIView):
     """Generate presigned URL for S3 upload"""
     permission_classes = [AllowAny]  # Allow anyone to upload, but you might want to restrict this
     
-    def get(self, request):
-        file_name = request.query_params.get('file_name')
-        file_type = request.query_params.get('file_type', 'image/jpeg')
+    def post(self, request):
+        file_name = request.data.get('file_name')
+        file_type = request.data.get('file_type', 'image/jpeg')
         
         if not file_name:
             return Response({'error': 'file_name is required'}, status=status.HTTP_400_BAD_REQUEST)
