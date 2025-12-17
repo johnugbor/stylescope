@@ -25,6 +25,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 import os
 import json
+import uuid
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 
@@ -1108,8 +1109,8 @@ class ChristmasPresignUploadView(APIView):
         content_type = request.data.get('content_type')
         if not filename or not content_type:
             return Response({"error": "filename and content_type are required"}, status=status.HTTP_400_BAD_REQUEST)
-        
-        object_name = f"uploads/chritsmas/{request.user.id}/{filename}"
+        user_id = request.user.id if request.user.is_authenticated else str(uuid.uuid4())        
+        object_name = f"uploads/chritsmas/{user_id}/{filename}"
 
         if settings.USE_S3:
             s3_client = boto3.client(
