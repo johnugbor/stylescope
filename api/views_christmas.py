@@ -28,12 +28,12 @@ from .tasks import process_christmas_try_on  # We'll create this Celery task
 
 
 # Custom Permission for Christmas Module
-class IsChristmasUser(IsAuthenticated):
+class IsChristmasUser:
     """
     Custom permission to check if user is a ChristmasUser
     """
     def has_permission(self, request, view):
-        # Check if user is authenticated via session
+        # Check if christmas_user is set on request
         return hasattr(request, 'christmas_user') and request.christmas_user is not None
 
 
@@ -109,6 +109,7 @@ class ChristmasUserLogoutView(APIView):
 class ChristmasUserProfileView(APIView):
     """Get current Christmas user profile"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     
     def get(self, request):
         christmas_user = get_christmas_user_from_request(request)
@@ -129,6 +130,7 @@ class ChristmasUserProfileView(APIView):
 class ChristmasClothViewSet(viewsets.ReadOnlyModelViewSet):
     """List and retrieve Christmas clothes (public)"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication for this view
     serializer_class = ChristmasClothSerializer
     queryset = ChristmasCloth.objects.filter(is_active=True)
 
@@ -138,6 +140,7 @@ class ChristmasClothViewSet(viewsets.ReadOnlyModelViewSet):
 class MyPictureViewSet(viewsets.ModelViewSet):
     """Manage user's uploaded pictures"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = MyPictureSerializer
     
     def get_queryset(self):
@@ -185,6 +188,7 @@ class MyPictureViewSet(viewsets.ModelViewSet):
 class CreditBundleViewSet(viewsets.ReadOnlyModelViewSet):
     """List available credit bundles"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = CreditBundleSerializer
     queryset = CreditBundle.objects.filter(is_active=True)
 
@@ -308,6 +312,7 @@ class CreditPurchaseView(APIView):
 class ChristmasTryOnViewSet(viewsets.ModelViewSet):
     """Manage Christmas try-on jobs"""
     permission_classes = [AllowAny]
+    authentication_classes = []  # Disable JWT authentication
     serializer_class = ChristmasTryOnSerializer
     
     def get_queryset(self):
