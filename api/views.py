@@ -1103,6 +1103,7 @@ class WaitlistNotificationView(APIView):
 class ChristmasPresignUploadView(APIView):
     """Generate presigned URL for S3 upload"""
     permission_classes = [AllowAny]
+    authentication_classes = []
 
     def post(self, request, *args, **kwargs):
         filename = request.data.get('filename')
