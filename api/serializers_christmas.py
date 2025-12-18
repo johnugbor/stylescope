@@ -1,53 +1,19 @@
 from rest_framework import serializers
 from .models.christmas import (
-    ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
+    ChristmasCloth, MyPicture, CreditBundle,
     PaymentCode, ChristmasTryOn, CreditTransaction
 )
+from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 
 
-class ChristmasUserSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password_confirm = serializers.CharField(write_only=True, required=True)
-    
-    class Meta:
-        model = ChristmasUser
-        fields = ['id', 'email', 'password', 'password_confirm', 'first_name', 'last_name', 'credits', 'created_at']
-        read_only_fields = ['id', 'credits', 'created_at']
-    
-    def validate(self, attrs):
-        if attrs.get('password') != attrs.get('password_confirm'):
-            raise serializers.ValidationError({"password": "Passwords do not match."})
-        return attrs
-    
-    def create(self, validated_data):
-        validated_data.pop('password_confirm')
-        password = validated_data.pop('password')
-        user = ChristmasUser(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
 
 
-class ChristmasUserLoginSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    password = serializers.CharField(write_only=True)
-    
-    def validate(self, attrs):
-        email = attrs.get('email')
-        password = attrs.get('password')
-        
-        try:
-            user = ChristmasUser.objects.get(email=email, is_active=True)
-        except ChristmasUser.DoesNotExist:
-            raise serializers.ValidationError("Invalid email or password.")
-        
-        if not user.check_password(password):
-            raise serializers.ValidationError("Invalid email or password.")
-        
-        attrs['user'] = user
-        return attrs
+
+
+
+
 
 
 class ChristmasClothSerializer(serializers.ModelSerializer):

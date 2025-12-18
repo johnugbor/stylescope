@@ -7,45 +7,6 @@ import random
 import string
 
 
-class ChristmasUser(BaseModel):
-    """Standalone user model for Christmas try-on feature"""
-    email = models.EmailField(unique=True)
-    password = models.CharField(max_length=255)  # Hashed password
-    first_name = models.CharField(max_length=100, blank=True)
-    last_name = models.CharField(max_length=100, blank=True)
-    is_active = models.BooleanField(default=True)
-    credits = models.PositiveIntegerField(default=0)  # Available credits for try-ons
-    
-    def __str__(self):
-        return self.email
-    
-    def set_password(self, raw_password):
-        """Hash and set password"""
-        self.password = make_password(raw_password)
-    
-    def check_password(self, raw_password):
-        """Verify password"""
-        return check_password(raw_password, self.password)
-    
-    def has_credits(self, amount=1):
-        """Check if user has enough credits"""
-        return self.credits >= amount
-    
-    def consume_credits(self, amount=1):
-        """Consume credits for try-on"""
-        if not self.has_credits(amount):
-            raise ValidationError(f"Insufficient credits. You need {amount} credits.")
-        self.credits -= amount
-        self.save(update_fields=['credits'])
-        return self.credits
-    
-    def add_credits(self, amount):
-        """Add credits to user account"""
-        self.credits += amount
-        self.save(update_fields=['credits'])
-        return self.credits
-
-
 class ChristmasCloth(BaseModel):
     """Christmas clothing items uploaded by admin"""
     name = models.CharField(max_length=255)
@@ -64,7 +25,7 @@ class ChristmasCloth(BaseModel):
 
 class MyPicture(BaseModel):
     """User's uploaded pictures for try-on"""
-    user = models.ForeignKey(ChristmasUser, on_delete=models.CASCADE, related_name="my_pictures", null=True, blank=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="christmas_my_pictures", null=True, blank=True)
     image_url = models.CharField(max_length=1024)  # S3 URL
     is_primary = models.BooleanField(default=False)  # User's default picture
     session_id = models.CharField(max_length=100, blank=True)  # For non-logged in users
@@ -95,7 +56,7 @@ class PaymentCode(BaseModel):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     credits = models.PositiveIntegerField(default=1)  # Credits this payment grants
     is_used = models.BooleanField(default=False)
-    used_by = models.ForeignKey(ChristmasUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="used_payment_codes")
+    used_by = models.ForeignKey('User', on_delete=models.SET_NULL, null=True, blank=True, related_name="used_christmas_payment_codes")
     used_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField()
     session_id = models.CharField(max_length=100, blank=True)  # For non-logged in users
@@ -150,13 +111,13 @@ class PaystackTransaction(BaseModel):
         SUCCESS = "SUCCESS", "Success"
         FAILED = "FAILED", "Failed"
     
-    user = models.ForeignKey(ChristmasUser, on_delete=models.CASCADE, related_name="paystack_transactions", null=True, blank=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="christmas_paystack_transactions", null=True, blank=True)
     session_id = models.CharField(max_length=100, blank=True)  # For non-logged in users
     reference = models.CharField(max_length=100, unique=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)  # Amount in Naira
     status = models.CharField(max_length=20, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     paystack_reference = models.CharField(max_length=100, blank=True)
-    payment_code = models.OneToOneField(PaymentCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="paystack_transaction")
+    payment_code = models.OneToOneField(PaymentCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="christmas_paystack_transaction")
     
     def __str__(self):
         return f"Paystack Transaction {self.reference} - {self.status}"
@@ -171,7 +132,7 @@ class ChristmasTryOn(BaseModel):
         COMPLETED = "COMPLETED", "Completed"
         FAILED = "FAILED", "Failed"
     
-    user = models.ForeignKey(ChristmasUser, on_delete=models.CASCADE, related_name="try_ons", null=True, blank=True)
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="christmas_try_ons", null=True, blank=True)
     session_id = models.CharField(max_length=100, blank=True)  # For non-logged in users
     christmas_cloth = models.ForeignKey(ChristmasCloth, on_delete=models.CASCADE)
     my_picture = models.ForeignKey(MyPicture, on_delete=models.CASCADE)
@@ -180,7 +141,7 @@ class ChristmasTryOn(BaseModel):
     result_image_url = models.CharField(max_length=1024, blank=True)  # Generated try-on image
     error_message = models.TextField(blank=True)
     
-    payment_code = models.ForeignKey(PaymentCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="try_ons")
+    payment_code = models.ForeignKey(PaymentCode, on_delete=models.SET_NULL, null=True, blank=True, related_name="christmas_try_ons")
     was_paid = models.BooleanField(default=False)  # Whether this was a paid try-on
     completed_at = models.DateTimeField(null=True, blank=True)
     
@@ -201,7 +162,7 @@ class CreditTransaction(BaseModel):
         REFUND = "REFUND", "Refund"
         ADMIN_GRANT = "ADMIN_GRANT", "Admin Grant"
     
-    user = models.ForeignKey(ChristmasUser, on_delete=models.CASCADE, related_name="credit_transactions")
+    user = models.ForeignKey('User', on_delete=models.CASCADE, related_name="christmas_credit_transactions")
     transaction_type = models.CharField(max_length=20, choices=TransactionType.choices)
     amount = models.IntegerField()  # Positive for additions, negative for consumption
     balance_after = models.PositiveIntegerField()  # User's balance after transaction

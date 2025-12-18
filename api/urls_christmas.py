@@ -1,8 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views_christmas import (
-    ChristmasUserRegisterView, ChristmasUserLoginView, ChristmasUserLogoutView,
-    ChristmasUserProfileView, ChristmasClothViewSet, MyPictureViewSet,
+from .views_christmas import (ChristmasClothViewSet, MyPictureViewSet,
     CreditBundleViewSet, PaymentCodeVerifyView, CreditPurchaseView,
     ChristmasTryOnViewSet, CreditTransactionListView, christmas_pricing_info,
     PaystackPaymentInitiateView, get_payment_code, paystack_webhook
@@ -16,10 +14,7 @@ router.register(r'try-ons', ChristmasTryOnViewSet, basename='christmas-try-on')
 
 urlpatterns = [
     # Authentication
-    path('auth/register/', ChristmasUserRegisterView.as_view(), name='christmas-register'),
-    path('auth/login/', ChristmasUserLoginView.as_view(), name='christmas-login'),
-    path('auth/logout/', ChristmasUserLogoutView.as_view(), name='christmas-logout'),
-    path('auth/profile/', ChristmasUserProfileView.as_view(), name='christmas-profile'),
+
     
     # Payment & Credits
     path('payment/verify/', PaymentCodeVerifyView.as_view(), name='payment-verify'),
