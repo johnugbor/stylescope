@@ -7,7 +7,7 @@ from .models.jobs import EditJob
 from .models.Subscription import    UserSubscription,SubscriptionPlan
 from .models.support import  Support,SupportMessage
 from .models.christmas import (
-    ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
+    ChristmasCloth, MyPicture, CreditBundle,
     PaymentCode, ChristmasTryOn, CreditTransaction, PaystackTransaction
 )
 class UserAdmin(BaseUserAdmin):
@@ -191,27 +191,6 @@ class SupportMessageAdmin(admin.ModelAdmin):
     message_preview.short_description = 'Message Preview'
 
 # ==================== CHRISTMAS MODULE ADMIN ====================
-
-@admin.register(ChristmasUser)
-class ChristmasUserAdmin(admin.ModelAdmin):
-    list_display = ('email', 'first_name', 'last_name', 'credits', 'is_active', 'created_at')
-    list_filter = ('is_active', 'created_at')
-    search_fields = ('email', 'first_name', 'last_name')
-    readonly_fields = ('id', 'password', 'created_at', 'updated_at')
-    ordering = ('-created_at',)
-    
-    fieldsets = (
-        ('Account Info', {
-            'fields': ('id', 'email', 'password', 'first_name', 'last_name')
-        }),
-        ('Credits & Status', {
-            'fields': ('credits', 'is_active')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-    )
 
 
 @admin.register(ChristmasCloth)

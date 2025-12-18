@@ -12,13 +12,14 @@ import json
 import hmac
 import hashlib
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models.christmas import (
-    ChristmasUser, ChristmasCloth, MyPicture, CreditBundle,
+    ChristmasCloth, MyPicture, CreditBundle,
     PaymentCode, ChristmasTryOn, CreditTransaction, PaystackTransaction
 )
 from .serializers_christmas import (
-    ChristmasUserSerializer, ChristmasUserLoginSerializer,
+
     ChristmasClothSerializer, MyPictureSerializer, CreditBundleSerializer,
     PaymentCodeSerializer, PaymentCodeVerifySerializer,
     ChristmasTryOnSerializer, ChristmasTryOnCreateSerializer,
@@ -39,104 +40,26 @@ class IsChristmasUser(IsAuthenticated):
 
 # Authentication Helper
 def get_christmas_user_from_request(request):
-    """Helper to get ChristmasUser from session or JWT token"""
-    # Check session first
+    """Helper to get User with Christmas features enabled"""
+    # Check if user is authenticated and has Christmas features enabled
+    if request.user.is_authenticated and request.user.is_christmas_user:
+        return request.user
+    
+    # Check session for Christmas user ID (fallback for session-based auth)
     user_id = request.session.get('christmas_user_id')
     if user_id:
         try:
-            return ChristmasUser.objects.get(id=user_id, is_active=True)
-        except ChristmasUser.DoesNotExist:
-            pass
-    
-    # Check JWT token
-    auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-    if auth_header.startswith('Bearer '):
-        try:
-            from rest_framework_simplejwt.tokens import AccessToken
-            token = auth_header[7:]
-            access_token = AccessToken(token)
-            user_id = access_token['user_id']
-            return ChristmasUser.objects.get(id=user_id, is_active=True)
-        except:
+
+            User = get_user_model()
+            user = User.objects.get(id=user_id, is_christmas_user=True, christmas_active=True)
+            return user
+        except User.DoesNotExist:
             pass
     
     return None
 
 
 # === AUTHENTICATION VIEWS ===
-
-class ChristmasUserRegisterView(generics.CreateAPIView):
-    """Register a new Christmas user"""
-    permission_classes = [AllowAny]
-    serializer_class = ChristmasUserSerializer
-    
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-        
-        # Log user in automatically after registration
-        request.session['christmas_user_id'] = str(user.id)
-        
-        return Response({
-            'message': 'Christmas account created successfully!',
-            'user': ChristmasUserSerializer(user).data
-        }, status=status.HTTP_201_CREATED)
-
-
-class ChristmasUserLoginView(APIView):
-    """Login for Christmas users"""
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        serializer = ChristmasUserLoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        
-        user = serializer.validated_data['user']
-        request.session['christmas_user_id'] = str(user.id)
-        
-        # Generate JWT tokens
-        refresh = RefreshToken.for_user(user)
-        access_token = str(refresh.access_token)
-        refresh_token = str(refresh)
-        
-        return Response({
-            'message': 'Login successful!',
-            'user': ChristmasUserSerializer(user).data,
-            'tokens': {
-                'access': access_token,
-                'refresh': refresh_token
-            }
-        })
-
-
-class ChristmasUserLogoutView(APIView):
-    """Logout Christmas user"""
-    permission_classes = [AllowAny]
-    
-    def post(self, request):
-        if 'christmas_user_id' in request.session:
-            del request.session['christmas_user_id']
-        return Response({'message': 'Logout successful!'})
-
-
-class ChristmasUserProfileView(APIView):
-    """Get current Christmas user profile"""
-    permission_classes = [AllowAny]
-    authentication_classes = []  # Disable JWT authentication
-    
-    def get(self, request):
-        christmas_user = get_christmas_user_from_request(request)
-        if not christmas_user:
-            return Response({
-                'authenticated': False,
-                'message': 'Not logged in'
-            })
-        
-        return Response({
-            'authenticated': True,
-            'user': ChristmasUserSerializer(christmas_user).data
-        })
 
 
 # === CHRISTMAS CLOTHES VIEWS ===
@@ -295,14 +218,14 @@ class CreditPurchaseView(APIView):
                 payment_code.use(user=christmas_user)
                 
                 # Add bundle credits
-                christmas_user.add_credits(bundle.credits)
+                christmas_user.add_christmas_credits(bundle.credits)
                 
                 # Create transaction record
                 CreditTransaction.objects.create(
                     user=christmas_user,
                     transaction_type=CreditTransaction.TransactionType.PURCHASE,
                     amount=bundle.credits,
-                    balance_after=christmas_user.credits,
+                    balance_after=christmas_user.christmas_credits,
                     payment_code=payment_code,
                     credit_bundle=bundle,
                     notes=f"Purchased {bundle.name}"
@@ -311,7 +234,7 @@ class CreditPurchaseView(APIView):
                 return Response({
                     'message': f'Successfully purchased {bundle.name}!',
                     'credits_added': bundle.credits,
-                    'total_credits': christmas_user.credits,
+                    'total_credits': christmas_user.christmas_credits,
                     'bundle': CreditBundleSerializer(bundle).data
                 })
         
@@ -361,8 +284,8 @@ class ChristmasTryOnViewSet(viewsets.ModelViewSet):
                 # Logged in user
                 if christmas_user:
                     # Option 1: Use existing credits
-                    if christmas_user.has_credits(1):
-                        christmas_user.consume_credits(1)
+                    if christmas_user.has_christmas_credits(1):
+                        christmas_user.consume_christmas_credits(1)
                         
                         try_on = ChristmasTryOn.objects.create(
                             user=christmas_user,
@@ -376,7 +299,7 @@ class ChristmasTryOnViewSet(viewsets.ModelViewSet):
                             user=christmas_user,
                             transaction_type=CreditTransaction.TransactionType.CONSUME,
                             amount=-1,
-                            balance_after=christmas_user.credits,
+                            balance_after=christmas_user.christmas_credits,
                             try_on=try_on,
                             notes="Try-on created"
                         )
@@ -677,12 +600,12 @@ def paystack_webhook(request):
                 
                 # If user is logged in, add credits immediately
                 if paystack_txn.user:
-                    paystack_txn.user.add_credits(1)
+                    paystack_txn.user.add_christmas_credits(1)
                     CreditTransaction.objects.create(
                         user=paystack_txn.user,
                         transaction_type=CreditTransaction.TransactionType.PURCHASE,
                         amount=1,
-                        balance_after=paystack_txn.user.credits,
+                        balance_after=paystack_txn.user.christmas_credits,
                         notes=f"Paystack payment {reference}"
                     )
                 

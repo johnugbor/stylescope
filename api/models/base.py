@@ -2,6 +2,7 @@ import uuid
 import random
 from django.db import models
 from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.forms import ValidationError
 from django.utils import timezone
 from datetime import timedelta
 
@@ -27,15 +28,41 @@ class UserManager(BaseUserManager):
         return self.create_user(email, password, **extra_fields)
 
 class User(AbstractUser):
+    #id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     username = None  # Remove username field
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=30, blank=True)  # Optional during registration
     last_name = models.CharField(max_length=30, blank=True)   # Optional during registration
     is_email_verified = models.BooleanField(default=False)  # Email verification status
+    
+    # Christmas-specific fields
+    is_christmas_user = models.BooleanField(default=False)  # Whether user has Christmas features enabled
+    christmas_credits = models.PositiveIntegerField(default=0)  # Available credits for Christmas try-ons
+    christmas_active = models.BooleanField(default=True)  # Whether Christmas account is active
+    
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     
     objects = UserManager()
+    
+    # Christmas-related methods
+    def has_christmas_credits(self, amount=1):
+        """Check if user has enough Christmas credits"""
+        return self.christmas_credits >= amount
+    
+    def consume_christmas_credits(self, amount=1):
+        """Consume Christmas credits for try-on"""
+        if not self.has_christmas_credits(amount):
+            raise ValidationError(f"Insufficient credits. You need {amount} credits.")
+        self.christmas_credits -= amount
+        self.save(update_fields=['christmas_credits'])
+        return self.christmas_credits
+    
+    def add_christmas_credits(self, amount):
+        """Add Christmas credits to user account"""
+        self.christmas_credits += amount
+        self.save(update_fields=['christmas_credits'])
+        return self.christmas_credits
 
 class BaseModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
